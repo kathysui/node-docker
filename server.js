@@ -1,40 +1,53 @@
-const http = require('http');
+const express = require('express')
+const https = require('https');
 const fs = require('fs');
 
+const app = express()
 const hostname = '0.0.0.0';
-const port = 8000;
+const port = 8000
 
-const pages = ['/Home.html', '/HH-24.html', '/Sagittarius-A.html', '/404.html'];
-const css = ['/Home.css', '/HH-24.css', '/Sagittarius-A.css', '/nicepage.css'];
-const js = ['/nicepage.js', '/jquery-1.9.1.min.js'];
+// const pages = ['/orion.jpg', '/Home.html', '/HH-24.html', '/Sagittarius-A.html', '/404.html', '/Home.css', '/HH-24.css', '/Sagittarius-A.css', '/nicepage.css', '/nicepage.js', '/jquery-1.9.1.min.js'];
 
-const server = http.createServer((req, res) => {
-  if(req.url == '/') {
-    res.writeHead(302, {'Location': 'Home.html'});
-    res.end();
-  } else if(pages.includes(req.url)) {
-    fs.readFile("html"+req.url, function (error, file) {
-      res.writeHead(200, {"Content-Type": "text/html"});
-      res.end(file);
+app.get('/', (req, res) => {
+    res.redirect('/Home.html')
+})
+
+app.get('/test.html', (req, res) => {
+    https.get('https://api.thecatapi.com/v1/images/search', res2 => {
+        let data = [];
+        const headerDate = res2.headers && res2.headers.date ? res2.headers.date : 'no response date';
+        console.log('Status Code:', res2.statusCode);
+        console.log('Date in Response header:', headerDate);
+        res2.on("data", chunk => {
+            data.push(chunk);
+        });
+        res2.on("end", () => {
+            const msg = JSON.parse(Buffer.concat(data).toString());
+            for (i of msg) {
+                fs.readFile(__dirname + "/html/test.html", function (error, file) {
+                    res.send(file.toString().replace("%%%%%", i.url));
+                });
+            }
+        });
     });
-  } else if(css.includes(req.url)) {
-    fs.readFile("html"+req.url, function (error, file) {
-      res.writeHead(200, {"Content-Type": "text/css"});
-      res.end(file);
-    });
-  } else if(js.includes(req.url)) {
-    fs.readFile("html"+req.url, function (error, file) {
-      res.writeHead(200, {"Content-Type": "text/javascript"});
-      res.end(file);
-    });
-  } else {
-    console.log(req.url)
-    res.writeHead(302, {'Location': '404.html'});
-    res.end();
-  }
-});
+})
 
-server.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}/`);
-});
+app.get('/counter.html', (req, res) => {
+    fs.readFile(__dirname + "/counter", function (error, file) {
+        fs.writeFile(__dirname + "/counter", "" + (parseInt(file.toString()) + 1), () => {})
+        res.send("<h1> This page has been visited " + file.toString() + " times </h1>");
+    });
+})
 
+app.get('*.html|css|js|jpg', (req, res) => {
+    const path = __dirname + '/html' + req.originalUrl
+    if (fs.existsSync(path)) {
+        res.sendFile(path);
+    } else {
+        res.redirect('404.html')
+    }
+})
+
+app.listen(port, hostname, () => {
+    console.log(`Example app listening on port ${port}`)
+})
